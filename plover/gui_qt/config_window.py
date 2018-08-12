@@ -400,11 +400,10 @@ class ConfigWindow(QDialog, Ui_ConfigWindow, WindowState):
                                  lambda v:
                                   (
                                    self._engine._config[('known_words_file_name', v)]
-                                   or v.replace(' ','-')+'-known.txt' # <-
-                                   # FIXME: the value of v appears to be
-                                   #        what is being switched away from
-                                   #        rather than what it being
-                                   #        switched to.
+                                   or '' # <- Let config.py regenerate the default value
+                                         #    It might generate it for the wrong language though.
+                                         #    Sometimes v just isn't the language being
+                                         #    switched to.
                                   )
                                )
                              )),
