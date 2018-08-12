@@ -306,7 +306,8 @@ def known_translations_option():
             key[0],
         )
     def default(config, key):
-        return str(config['system_name']).replace(' ', '-')+'-known.txt'
+        #. Translators: Default filename for stroke suggestion filters, %s is the system plugin name
+        return str(_('%s-known.txt') % (config['system_name'].replace(' ', '-')))
     def getter(config, key):
         section, option = location(config, key)
         return expand_path(config._config[section][option])
