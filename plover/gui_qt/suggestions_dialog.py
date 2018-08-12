@@ -1,4 +1,3 @@
-
 import re
 
 from PyQt5.QtCore import Qt
@@ -20,6 +19,7 @@ from plover.gui_qt.i18n import get_gettext
 from plover.gui_qt.utils import ToolBar
 from plover.gui_qt.tool import Tool
 
+from plover import system
 
 _ = get_gettext()
 
@@ -47,6 +47,10 @@ class SuggestionsDialog(Tool, Ui_SuggestionsDialog):
         super().__init__(engine)
         self.setupUi(self)
         self._last_suggestions = None
+        self.translation_blacklist_file=None
+        self.translation_blacklist=[]
+        self.use_regexes = False
+        self.suggestions.set_translation_blacklist(self.translation_blacklist)
         # Toolbar.
         self.layout().addWidget(ToolBar(
             self.action_ToggleOnTop,
@@ -59,10 +63,34 @@ class SuggestionsDialog(Tool, Ui_SuggestionsDialog):
         self._font_menu_text = QAction(_('&Text'), self._font_menu)
         self._font_menu_strokes = QAction(_('&Strokes'), self._font_menu)
         self._font_menu.addActions([self._font_menu_text, self._font_menu_strokes])
+        engine.signal_connect('config_changed', self.on_config_changed)
+        self.on_config_changed(engine.config)
         engine.signal_connect('translated', self.on_translation)
         self.suggestions.setFocus()
         self.restore_state()
         self.finished.connect(self.save_state)
+        
+    def on_config_changed(self, config_update):
+        if (('known_words_file_name' in config_update)):
+            self.translation_blacklist_file = config_update.get('known_words_file_name')
+        if (('suggestions_filter_uses_regexes' in config_update)):
+            self.use_regexes = config_update.get('suggestions_filter_uses_regexes')
+        if(self.translation_blacklist_file):
+            fname = self.translation_blacklist_file
+            try:
+                with open(fname) as blacklist:
+                    self.translation_blacklist=[]
+                    if (self.use_regexes):
+                        for i in blacklist.read().splitlines():
+                            self.translation_blacklist.append(i)
+                    else:
+                        # The suggestions widget wants regular expressions,
+                        #  so turn the strings into regexes by escaping them.
+                        for i in blacklist.read().splitlines():
+                            self.translation_blacklist.append(re.escape(i))
+            except FileNotFoundError:
+                pass
+        self.suggestions.set_translation_blacklist(self.translation_blacklist)
 
     def _get_font(self, name):
         return getattr(self.suggestions, name)
