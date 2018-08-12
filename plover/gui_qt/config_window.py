@@ -120,6 +120,35 @@ class FileOption(QWidget, Ui_FileWidget):
         self.valueChanged.emit(expand_path(self.path.text()))
 
 
+class FileReadOption(QWidget, Ui_FileWidget): #Same as above, but for reading
+
+    valueChanged = pyqtSignal(str)
+
+    def __init__(self, dialog_title, dialog_filter):
+        super().__init__()
+        self._dialog_title = dialog_title
+        self._dialog_filter = dialog_filter
+        self.setupUi(self)
+
+    def setValue(self, value):
+        self.path.setText(shorten_path(value))
+
+    def on_browse(self):
+        filename_suggestion = self.path.text()
+        filename = QFileDialog.getOpenFileName(
+            self, self._dialog_title,
+            filename_suggestion,
+            self._dialog_filter,
+        )[0]
+        if not filename:
+            return
+        self.path.setText(shorten_path(filename))
+        self.valueChanged.emit(filename)
+
+    def on_path_edited(self):
+        self.valueChanged.emit(expand_path(self.path.text()))
+
+
 class KeymapOption(QTableWidget):
 
     valueChanged = pyqtSignal(QVariant)
@@ -293,6 +322,13 @@ class ConfigWindow(QDialog, Ui_ConfigWindow, WindowState):
                              _('Set the display order for dictionaries:\n'
                                '- top-down: match the search order; highest priority first\n'
                                '- bottom-up: reverse search order; lowest priority first\n')),
+               ConfigOption(_('Know words file:'), 'known_words_file_name',
+                             partial(FileReadOption,
+                                     _('Select a file'),
+                                     _('Text files') + ' (*.txt)'),
+                             _('File to use for not suggesting strokes that the user already knows well.')),
+                ConfigOption(_('Use regular expressions'), 'suggestions_filter_uses_regexes', BooleanOption,
+                             _('Use regular expressions when filtering strokes suggestions by their translations.')),
             )),
             (_('Logging'), (
                 ConfigOption(_('Log file:'), 'log_file_name',
@@ -353,7 +389,18 @@ class ConfigWindow(QDialog, Ui_ConfigWindow, WindowState):
                                  for plugin in registry.list_plugins('system')
                              }),
                              dependents=(
-                                 ('system_keymap', lambda v: self._update_keymap(system_name=v)),
+                               ('system_keymap', lambda v: self._update_keymap(system_name=v)),
+                               ('known_words_file_name',
+                                 lambda v:
+                                  (
+                                   self._engine._config[('known_words_file_name', v)]
+                                   or v.replace(' ','-')+'-known.txt' # <-
+                                   # FIXME: the value of v appears to be
+                                   #        what is being switched away from
+                                   #        rather than what it being
+                                   #        switched to.
+                                  )
+                               )
                              )),
             )),
         )
