@@ -92,6 +92,9 @@ class ChoiceOption(QComboBox):
 
 
 class FileOption(QWidget, Ui_FileWidget):
+    # For files to be written by Plover
+    # If a file is selected that already exists,
+    #  it will show a warning about overwriting it.
 
     valueChanged = pyqtSignal(str)
 
@@ -120,7 +123,10 @@ class FileOption(QWidget, Ui_FileWidget):
         self.valueChanged.emit(expand_path(self.path.text()))
 
 
-class FileReadOption(QWidget, Ui_FileWidget): #Same as above, but for reading
+class FileReadOption(QWidget, Ui_FileWidget):
+    # Use this for files that Plover will read from
+    #  but which should have been created before
+    #  being selected.
 
     valueChanged = pyqtSignal(str)
 
