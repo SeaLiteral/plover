@@ -294,6 +294,30 @@ def dictionaries_option():
         return dictionaries
     return ConfigOption('dictionaries', default, getter, setter, validate, full_key)
 
+def known_translations_option():
+    def full_key(config, key):
+        if isinstance(key, tuple):
+            assert len(key) == 2
+            return key
+        return (key, config['system_name'])
+    def location(config, key):
+        return (
+            SYSTEM_CONFIG_SECTION % key[1],
+            key[0],
+        )
+    def default(config, key):
+        return str(config['system_name']).replace(' ', '-')+'-known.txt'
+    def getter(config, key):
+        section, option = location(config, key)
+        return expand_path(config._config[section][option])
+    def setter(config, key, value):
+        section, option = location(config, key)
+        config._set(section, option, shorten_path(value))
+    def validate(config, key, value):
+        if not isinstance(value, str):
+            raise InvalidConfigOption(value, default)
+        return value
+    return ConfigOption ('known_words_file_name', default, getter, setter, validate, full_key)
 
 class Config:
 
@@ -354,6 +378,8 @@ class Config:
         plugin_option('system_name', 'system', DEFAULT_SYSTEM_NAME, 'System', 'name'),
         system_keymap_option(),
         dictionaries_option(),
+        known_translations_option(),
+        boolean_option('suggestions_filter_uses_regexes', False, 'GUI'),
     ])
 
     def _lookup(self, key):
