@@ -9,6 +9,7 @@ from plover.translation import escape_translation
 
 from plover.gui_qt.suggestions_widget_ui import Ui_SuggestionsWidget
 
+import re
 
 class SuggestionsWidget(QWidget, Ui_SuggestionsWidget):
 
@@ -33,6 +34,13 @@ class SuggestionsWidget(QWidget, Ui_SuggestionsWidget):
         cursor = self.suggestions.textCursor()
         cursor.movePosition(QTextCursor.End)
         for suggestion in suggestion_list:
+            foundSuggestion = True
+            for i in self.translation_blacklist:
+                if (i.fullmatch(suggestion.text)):
+                    foundSuggestion = False
+                    break
+            if not foundSuggestion:
+                continue
             cursor.insertBlock()
             cursor.setCharFormat(self._translation_char_format)
             cursor.block().setUserState(self.STYLE_TRANSLATION)
@@ -45,13 +53,19 @@ class SuggestionsWidget(QWidget, Ui_SuggestionsWidget):
                 cursor.setCharFormat(self._strokes_char_format)
                 cursor.block().setUserState(self.STYLE_STROKES)
                 cursor.insertText('   ' + '/'.join(strokes_list))
-        cursor.insertText('\n')
+        if (foundSuggestion):
+            cursor.insertText('\n')
         # Keep current position when not at the end of the document.
         if scroll_at_end:
             scrollbar.setValue(scrollbar.maximum())
 
     def clear(self):
         self.suggestions.clear()
+
+    def set_translation_blacklist(self, blacklist):
+        self.translation_blacklist = []
+        for i in blacklist:
+            self.translation_blacklist.append (re.compile (i))
 
     def _reformat(self):
         document = self.suggestions.document()
