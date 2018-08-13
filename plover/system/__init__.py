@@ -55,11 +55,28 @@ _EXPORTS = {
     'DEFAULT_DICTIONARIES'     : lambda mod: mod.DEFAULT_DICTIONARIES,
 }
 
+# Some systems may require these, others may not,
+# some systems were implemented before these, so,
+# for backwards compatibility, they are optional.
+
+# Not all systems set these, so they need to have
+# some default values. Use value[1] to get those.
+
+_OPTIONAL_EXPORTS = {
+    'PREFIX_ORTHOGRAPHY_RULES' : (lambda mod: [(re.compile(pattern, re.I), replacement)
+                                              for pattern, replacement in mod.ORTHOGRAPHY_PREFIX_RULES], lambda mod: []),
+}
+
 def setup(system_name):
     system_symbols = {}
     mod = registry.get_plugin('system', system_name).obj
     for symbol, init in _EXPORTS.items():
         system_symbols[symbol] = init(mod)
+    for symbol, init in _OPTIONAL_EXPORTS.items():
+        try:
+            system_symbols[symbol] = init[0](mod)
+        except AttributeError:
+            system_symbols[symbol] = init[1](mod)
     system_symbols['NAME'] = system_name
     globals().update(system_symbols)
 
