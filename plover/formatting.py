@@ -12,7 +12,7 @@ from collections import namedtuple
 import re
 import string
 
-from plover.orthography import add_suffix
+from plover.orthography import add_suffix, add_prefix
 from plover.registry import registry
 
 
@@ -498,7 +498,8 @@ class _Action:
                  # Previous.
                  prev_attach=False, prev_replace='',
                  # Current.
-                 glue=False, word=None, orthography=True, space_char=' ',
+                 glue=False, word=None, orthography=True,
+                 orthographic_prefix=True, space_char=' ',
                  upper_carry=False, case=None, text=None, trailing_space='',
                  combo=None, command=None,
                  # Next.
@@ -523,7 +524,10 @@ class _Action:
         upper_carry -- True if we are uppercasing the current word.
 
         othography -- True if orthography rules should be applies when adding
-                      a suffix to this action.
+                      an affix to this action.
+     
+        orthographic_prefix -- Whether the word is a prefix that may apply
+                               orthography rules to what comes after it
 
         space_char -- this character will replace spaces after all other
         formatting has been applied
@@ -553,6 +557,7 @@ class _Action:
         self.word = word
         self.upper_carry = upper_carry
         self.orthography = orthography
+        self.orthographic_prefix=orthographic_prefix
         self.next_attach = next_attach
         self.next_case = next_case
         # Persistent state variables
@@ -572,6 +577,7 @@ class _Action:
             prev_attach=self.next_attach,
             # Current.
             case=self.case, glue=self.glue, orthography=self.orthography,
+            orthographic_prefix=self.orthographic_prefix,
             space_char=self.space_char, upper_carry=self.upper_carry,
             word=self.word, trailing_space=self.trailing_space,
             # Next.
@@ -727,6 +733,17 @@ def _atom_to_action(atom, ctx):
     else:
         action = ctx.new_action()
         action.text = _unescape_atom(atom)
+        if ctx.last_action.next_attach:
+            last_word=ctx.last_action.text
+            if last_word and ctx.last_action.orthographic_prefix:
+                new_word = add_prefix(atom, last_word)
+                common_len = len(commonprefix([last_word, new_word]))
+                replaced = last_word[common_len:]
+                action.prev_replace = ctx.last_text(len(replaced))
+                assert replaced.lower() == action.prev_replace.lower()
+                last_word = last_word[:common_len]
+                meta = new_word[common_len:]
+                action.text = meta
     # Finalize action's text.
     text = action.text
     if text is not None:
@@ -767,7 +784,10 @@ def _apply_meta_attach(meta, ctx):
         # application of orthography rules. This allows the
         # stenographer to tell Plover not to auto-correct a word.
         action.orthography = False
-    elif (
+    elif end:
+        action.orthographic_prefix = True
+    if (
+        not meta and
         last_word and
         not meta.isspace() and
         ctx.last_action.orthography and
