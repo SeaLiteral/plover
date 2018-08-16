@@ -64,7 +64,7 @@ _EXPORTS = {
 
 _OPTIONAL_EXPORTS = {
     'PREFIX_ORTHOGRAPHY_RULES' : (lambda mod: [(re.compile(pattern, re.I), replacement)
-                                              for pattern, replacement in mod.ORTHOGRAPHY_PREFIX_RULES], lambda mod: []),
+                                              for pattern, replacement in mod.PREFIX_ORTHOGRAPHY_RULES], lambda mod: []),
 }
 
 def setup(system_name):
