@@ -12,7 +12,7 @@ from collections import namedtuple
 import re
 import string
 
-from plover.orthography import add_suffix
+from plover.orthography import add_prefix, add_suffix
 from plover.registry import registry
 
 
@@ -502,7 +502,7 @@ class _Action:
                  upper_carry=False, case=None, text=None, trailing_space='',
                  combo=None, command=None,
                  # Next.
-                 next_attach=False, next_case=None
+                 next_attach=False, next_orthography=False, next_case=None
                 ):
         """Initialize a new action.
 
@@ -543,6 +543,9 @@ class _Action:
 
         next_attach -- True if there should be no space between this and the next
                        action.
+               
+        next_orthography -- Whether this action will affect the next one
+                            as a prefix with orthography.
 
         next_case -- Case to apply to next action: capitalize/lower/upper...
 
@@ -554,6 +557,7 @@ class _Action:
         self.upper_carry = upper_carry
         self.orthography = orthography
         self.next_attach = next_attach
+        self.next_orthography = next_orthography
         self.next_case = next_case
         # Persistent state variables
         self.space_char = space_char
@@ -575,7 +579,8 @@ class _Action:
             space_char=self.space_char, upper_carry=self.upper_carry,
             word=self.word, trailing_space=self.trailing_space,
             # Next.
-            next_attach=self.next_attach, next_case=self.next_case,
+            next_attach=self.next_attach, next_orthography=self.next_orthography,
+            next_case=self.next_case,
         )
 
     def new_state(self):
@@ -729,6 +734,19 @@ def _atom_to_action(atom, ctx):
         action.text = _unescape_atom(atom)
     # Finalize action's text.
     text = action.text
+    last_word = ctx.last_action.text
+    if(text and
+       last_word and
+       ctx.last_action.next_attach and
+       ctx.last_action.next_orthography
+      ):
+          new_word = add_prefix(text, last_word)
+          common_len = len(commonprefix([last_word, new_word]))
+          replaced = last_word[common_len:]
+          action.prev_replace = ctx.last_text(len(replaced))
+          assert replaced.lower() == action.prev_replace.lower()
+          last_word = last_word[:common_len]
+          text = new_word[common_len:]
     if text is not None:
         # Update word.
         if action.word is None:
@@ -780,6 +798,11 @@ def _apply_meta_attach(meta, ctx):
         assert replaced.lower() == action.prev_replace.lower()
         last_word = last_word[:common_len]
         meta = new_word[common_len:]
+    elif (
+        not meta.isspace() and
+        end
+    ):
+        action.next_orthography = True
     action.text = meta
     if action.prev_attach:
         action.word = _rightmost_word(last_word + meta)
